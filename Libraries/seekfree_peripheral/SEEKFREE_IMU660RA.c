@@ -539,8 +539,8 @@ void imu660ra_get_gyro (void)
     imu660ra_gyro_z = (int16)(((uint16)dat[5]<<8 | dat[4]));
 #else
 	// SPI读取第一个地址为空
-	  uint8 dat[7];
-	  imu660ra_read_registers(IMU660RA_GYRO_ADDRESS, dat, 7);
+	uint8 dat[7];
+	imu660ra_read_registers(IMU660RA_GYRO_ADDRESS, dat, 7);
     imu660ra_gyro_x = (int16)(((uint16)dat[2]<<8 | dat[1]));
     imu660ra_gyro_y = (int16)(((uint16)dat[4]<<8 | dat[3]));
     imu660ra_gyro_z = (int16)(((uint16)dat[6]<<8 | dat[5]));

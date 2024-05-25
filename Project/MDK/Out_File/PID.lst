@@ -1,0 +1,136 @@
+C251 COMPILER V5.60.0,  PID                                                                25/05/24  09:55:38  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE PID
+OBJECT MODULE PLACED IN .\Out_File\PID.obj
+COMPILER INVOKED BY: E:\keil5\C251\BIN\C251.EXE ..\USER\src\PID.c XSMALL INTR2 ROM(HUGE) WARNINGLEVEL(3) BROWSE INCDIR(.
+                    -.\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\CODE;..\USER\inc;..\U
+                    -SER\src) DEBUG PRINT(.\Out_File\PID.lst) OBJECT(.\Out_File\PID.obj) 
+
+stmt  level    source
+
+    1          #include "PID.h"
+    2          #define MAX_SUMERROR 2500
+    3          #define MAX_OUTPUT 1600
+    4          /************************************************
+    5          函数名：IncPIDInit(PID *sptr)
+    6          功  能：PID参数初始化
+    7          参  数：
+    8          返回值：void
+    9          ************************************************/
+   10          void IncPIDInit(PID *sptr)
+   11          {
+   12   1              sptr->CompensateError = 0;
+   13   1          sptr->SumError=0;
+   14   1          sptr->LastError=0.0001;
+   15   1          sptr->LLastError=0;
+   16   1          sptr->Kp=0;
+   17   1          sptr->Ki=1000;
+   18   1          sptr->Kd=0;
+   19   1      }
+   20          /************************************************
+   21          函数名：LocP_DCalc(PID *sptr,int16 Setpoint,int16 Turepoint)
+   22          功  能：位置式PID控制
+   23          参  数：PID *sptr,int16 Setpoint,int16 Turepoint
+   24          返回值：float 
+   25          ************************************************/
+   26          int16 LocP_DCalc(PID*sptr,int16 Setpoint,int16 Turepoint)
+   27          {
+   28   1          int16 iError,dError;
+   29   1          int16 output;
+   30   1      
+   31   1          float ErrorRate = 0.0;
+   32   1          iError=Setpoint-Turepoint;  //偏差
+   33   1      
+   34   1          dError=(int16)(iError-(sptr->LastError));     //微分
+   35   1              sptr->SumError+=iError;            //积分(采样时间很短时，用一阶差分代替一阶微分，用累加代替积分)
+   36   1          sptr->LastError=iError;
+   37   1              //积分限幅
+   38   1              sptr->SumError = sptr->SumError>MAX_SUMERROR?MAX_SUMERROR:sptr->SumError<-MAX_SUMERROR?-MAX_SUMERROR:spt
+             -r->SumError;
+   39   1              // 多加一个积分补偿器，改进算法 
+   40   1              // 一般情况下，积分补偿器不做任何作用 当车需要快速修正或者超调时才会起作用
+   41   1              ErrorRate = iError / sptr->LastError;
+   42   1          ErrorRate = ErrorRate < 0?-ErrorRate:ErrorRate;
+   43   1          if(ErrorRate > 1)
+   44   1          {
+   45   2                  sptr->CompensateError += iError * ErrorRate;
+   46   2          }
+   47   1          else
+   48   1          {
+   49   2                      sptr->CompensateError = (iError < 10 || sptr->CompensateError < 10)? 0:sptr->CompensateError / 1
+             -0;
+   50   2          }
+   51   1          sptr->CompensateError = sptr->CompensateError>MAX_SUMERROR?MAX_SUMERROR:sptr->CompensateError<-MAX_SU
+             -MERROR?-MAX_SUMERROR:sptr->CompensateError;
+   52   1          output=(int16)(sptr->Kp*iError  //比例项
+   53   1                +(sptr->Ki*sptr->SumError)//积分项
+   54   1                +sptr->Kd*dError);        //微分项
+C251 COMPILER V5.60.0,  PID                                                                25/05/24  09:55:38  PAGE 2   
+
+   55   1                
+   56   1          output = output > MAX_OUTPUT? MAX_OUTPUT:output < -MAX_OUTPUT?-MAX_OUTPUT:output;
+   57   1          output = output + sptr->Kc * sptr->CompensateError; // 积分超调补偿器
+   58   1          return(output);
+   59   1      }
+   60          /************************************************
+   61          函数名：IncPIDCalc(PID *sptr,int16 Setpoint,int16 Turepoint)
+   62          功  能：增量式PID控制
+   63          参  数：PID *sptr,int16 Setpoint,int16 Turepoint
+   64          返回值：int32 iIncpid
+   65          ************************************************/
+   66          int16 IncPIDCalc(PID *sptr,int16 Setpoint,int16 Turepoint)
+   67          {
+   68   1          int16 iError,iIncpid;
+   69   1          //当前误差
+   70   1          iError=Setpoint-Turepoint;      //偏差
+   71   1          //增量计算
+   72   1          iIncpid=(int16)(sptr->Kp*(iError-sptr->LastError)
+   73   1                  +sptr->Ki*iError
+   74   1                  +sptr->Kd*(iError-2*sptr->LastError+sptr->LLastError));
+   75   1          //储存误差，用于下次计算
+   76   1          sptr->LLastError=sptr->LastError;
+   77   1          sptr->LastError=iError;
+   78   1          return(iIncpid);
+   79   1      }
+   80          /************************************************
+   81          函数名：PlacePID_Control(PID *sptr, int16 Setpoint,int16 Turepiont)
+   82          功  能：动态位置式PID控制 (一般用于转向控制)
+   83          参  数：PID *sptr,int16 Setpoint,int16 Turepoint
+   84          返回值：int32 Actual
+   85          ************************************************/
+   86          int16 PlacePID_Control(PID *sptr, int16 Setpoint,int16 Turepiont)
+   87          {
+   88   1          int16 iError,Actual;
+   89   1          float KP;  //动态P，注意与Kp区分
+   90   1          iError = Setpoint - Turepiont;
+   91   1          KP = 1.0 * (iError*iError)/sptr->Ki+sptr->Kp ;    //动态P的计算
+   92   1          sptr->SumError+=iError;
+   93   1          Actual = (int16)(KP * iError + sptr->Kd* ((3.2*iError + 0.8*sptr->LastError) - sptr->LastError));
+   94   1          sptr->LastError = iError;
+   95   1          return Actual;
+   96   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       935     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

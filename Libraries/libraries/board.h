@@ -37,10 +37,10 @@
 #define PRINTF_ENABLE			1			// printf使能，0为失能，1为使能
 #define ENABLE_IAP 				1			// 使能软件一键下载功能，0为失能，1为使能
 
-#define DEBUG_UART 			  	UART_1
+#define DEBUG_UART 			  	UART_4
 #define DEBUG_UART_BAUD 	  	115200
-#define DEBUG_UART_RX_PIN  		UART1_RX_P30
-#define DEBUG_UART_TX_PIN  		UART1_TX_P31
+#define DEBUG_UART_RX_PIN  		UART4_RX_P02
+#define DEBUG_UART_TX_PIN  		UART4_TX_P03
 #define DEBUG_UART_TIM			TIM_2
 
 #if (1==PRINTF_ENABLE)

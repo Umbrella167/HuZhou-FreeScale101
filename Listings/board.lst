@@ -1,0 +1,16 @@
+C251 COMPILER V5.60.0,  board                                                              07/04/24  10:34:11  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE board
+OBJECT MODULE PLACED IN .\Objects\board.obj
+COMPILER INVOKED BY: C:\keil5(c251)\C251\BIN\C251.EXE D:\3.27match  数学软件\2024智能车竞速组\霍尔起跑检测\例程\HALL_Det
+                    -ection_CH32VDemo\Libraries\seekfree_peripheral\board.c INTR2 BROWSE DEBUG PRINT(.\Listings\board.lst) TABS(2) OBJECT(.\O
+                    -bjects\board.obj) 
+
+stmt  level    source
+
+*** ERROR C318 OF D:\3.27match  恃砑㘎2024智能车竞速组\霍尔起跑检测\莱蘚HALL_Detection_CH32VDemo\Libraries\seekfree_pe
+             -ripheral\board.c: can't open file 'D:\3.27match  恃砑㘎2024智能车竞速组\霍尔起跑检测\莱蘚HALL_Detection_CH32VDemo\Libr
+             -aries\seekfree_peripheral\board.c'
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  1 ERROR(S)

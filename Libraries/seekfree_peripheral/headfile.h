@@ -56,7 +56,7 @@
 *********************************************/
 //电机控制引脚 
 //MOTOR_MODE  0的话是两路模式MOS驱动，1的话是一路模式DRV驱动
-#define MOTOR_MODE_SELECT  0
+#define MOTOR_MODE_SELECT  1
 //=====一个电机需要两路PWM模式=====MOS/btn驱动都行=====
 #define Left_Z_Pin     PWMA_CH1P_P60   //PWMA_CH1P_P60 PWMB_CH2_P75
 #define Left_F_Pin     PWMA_CH2P_P62  //PWMA_CH2P_P62  PWMB_CH1_P74

@@ -156,12 +156,12 @@ void Strategy_Slect()
       if(!READ_GPIO(Switch_Pin_1))//用
       {
        Switch1=1;
-       //TFT_SHOW = 1;
+       TFT_SHOW = 1;
 			 //显示电感原始值
-			 /*ips114_showuint8(0,0,adc_value[0]);
+			 ips114_showuint8(0,0,adc_value[0]);
 	     ips114_showuint8(0,1,adc_value[1]);
 	     ips114_showuint8(0,2,adc_value[2]);
-	     ips114_showuint8(0,3,adc_value[3]);*/
+	     ips114_showuint8(0,3,adc_value[3]);
       }
       if(!READ_GPIO (Switch_Pin_2))//用
       {
@@ -342,6 +342,12 @@ void  Key_Scan_Deal ()
      }//清屏
 }
 
+
+//===============================================蜂鸣器相关=============================================
+//=====================================================================================================
+
+//蜂鸣器开和关 被写在对应头文件去了，去H文件查看
+
 /**********************************************蜂鸣器滴滴滴******************************************
 函数：void BUZZ_DiDiDi()
 功能：蜂鸣器滴滴滴
@@ -355,6 +361,56 @@ void BUZZ_DiDiDi(uint16 PinLV)
   TiaoCan_DelayMs(PinLV);
   BUZZ_OFF;
 }
+
+/***************************测试完毕**********************************************
+ *  函数名称：Test_Servo(void)
+ *  功能说明：舵机PWM初始化，测试标定输出PWM控制SD5/S3010舵机
+ *  参数说明：无
+ *  函数返回：无
+ *  修改时间：
+ *  备    注：参考龙邱库提供的！！！！
+ 【注意事项】注意，一定要对舵机打角进行限制
+ 使用龙邱母板测试流程：
+ 1.先使用万用表测量电池电压，务必保证电池电压在7V以上，否则无力不反应！
+ 2.然后确定舵机供电电压，SD5舵机用5V供电，S3010用6-7V供电，SD012舵机用5V供电！！！
+ 3.把舵机的舵盘去掉，让舵机可以自由转动；
+ 4.烧写程序并运行，让舵机转动到中值附近；如果没反应重复1-2步，或者调整舵机的PWM频率计占空比，能受控为准；
+ 5.舵机受控后用手轻转，舵机会吱吱响，对抗转动，此时可以装上舵盘；
+ 6.按键K0/K1确定舵机的左右转动极限，并记下来，作为后续限幅防止舵机堵转烧毁！
+ *************************************************************************/
+void Test_Servo_Hardware (void)
+{
+    char txt[16] = "X:";
+    unsigned int  duty = Steer_Duty_Midle;
+
+    ips114_clear(YELLOW);  //初始清屏
+	  ips114_showstr(0, 0, "Test_Servo_Hardware:");
+   	pwm_init(Steer_Pin, 50, Steer_Duty_Midle);     //初始化舵机  输出PWM频率200HZ，并设置中值
+    pwm_duty(Steer_Pin, Steer_Duty_Midle);
+    while (1)
+    {
+        if (!READ_GPIO(KEY1))
+        {
+            if (duty > 100)  		//防止duty超
+            {
+                duty += 10;     //标定的时候，可以把步长改小点，比如10
+            }
+        }
+        if (! READ_GPIO(KEY3))
+        {
+            duty = Steer_Duty_Midle;
+        }
+        if (! READ_GPIO(KEY2))
+        {
+            duty -= 10;
+        }
+			  pwm_duty(Steer_Pin, duty);
+				sprintf(txt, "Servo:%05d ", duty);
+				ips114_showstr(1, 2, txt); //显示
+				TiaoCan_DelayMs(100);        
+    }
+}
+
 /****************************测试完毕*********************************************
  *  函数名称：Test_Motor_Hardware(void)
  *  功能说明：测试标定输出PWM控制电机
@@ -373,6 +429,7 @@ void BUZZ_DiDiDi(uint16 PinLV)
 void Test_Motor_Hardware (void)
 {
     int16 duty = 2000;
+
     ips114_clear(YELLOW);  //初始清屏
 	  ips114_showstr(2, 0, "Test_Motor_Hardware:");
     init_PWM(1);
@@ -411,45 +468,47 @@ void Test_Motor_Hardware (void)
  *************************************************************************/
 void Test_Electric_Hardware (void)
 {
-	char txt[16];
+  //char txt[16];
 	ips114_clear(YELLOW);  //初始清屏
 	ips114_showstr(2, 0, "Test_Electric_Hardware:");
-	ADC_int();
+	//ADC_int();
 	while(1)
 	{
-			  //datasend();
-		    if (!READ_GPIO(KEY1)) //按下KEY1键
-        {
 					ips114_showstr(2, 1, "Normalize_Deal....");   //字符串显示
 					ADC_Collect();  //电感采值
-					
-					sprintf(txt,"adc0= %02f",adc_value[0]);
-					ips114_showstr(1, 2, txt); //显示
-					sprintf(txt,"adc1= %02f",adc_value[1]);
-					ips114_showstr(1, 3, txt); //显示
-					sprintf(txt,"adc2= %02f",adc_value[2]);
-					ips114_showstr(1, 4, txt); //显示
-					sprintf(txt,"adc3= %02f",adc_value[3]);
-					ips114_showstr(1, 5, txt); //显示				  	  	 
-        }
-				if(!READ_GPIO(KEY2)) //按下KEY2键
-				{
-					ips114_showstr(2, 1, "GYH_Normalize_Deal....");   //字符串显示
-					ADC_Collect();  //电感采值
-	        Data_current_analyze();  //电感值归一化函数
-					Current_Dir=Cha_bi_he(Left_Adc,Right_Adc,100);
-					
-					sprintf(txt,"adc0= %05d",Left_Adc);
-					ips114_showstr(1, 2, txt); //显示
-					sprintf(txt,"adc1= %05d",Left_Shu_Adc);
-					ips114_showstr(1, 3, txt); //显示
-					sprintf(txt,"adc2= %05d",Right_Shu_Adc);
-					ips114_showstr(1, 4, txt); //显示
-					sprintf(txt,"adc3= %05d",Right_Adc);
-					ips114_showstr(1, 5, txt); //显示
-					sprintf(txt,"Current_Dir= %05d",Current_Dir);
-					ips114_showstr(1, 6, txt); //显示
-        }
+			    //datasend();
+//		    if (!READ_GPIO(KEY1)) //按下KEY1键
+//        {
+//					ips114_showstr(2, 1, "Normalize_Deal....");   //字符串显示
+//					ADC_Collect();  //电感采值
+//					
+//					sprintf(txt,"adc0= %02f",adc_value[0]);
+//					ips114_showstr(1, 2, txt); //显示
+//					sprintf(txt,"adc1= %02f",adc_value[1]);
+//					ips114_showstr(1, 3, txt); //显示
+//					sprintf(txt,"adc2= %02f",adc_value[2]);
+//					ips114_showstr(1, 4, txt); //显示
+//					sprintf(txt,"adc3= %02f",adc_value[3]);
+//					ips114_showstr(1, 5, txt); //显示				  	  	 
+//        }
+//				if(!READ_GPIO(KEY2)) //按下KEY2键
+//				{
+//					ips114_showstr(2, 1, "GYH_Normalize_Deal....");   //字符串显示
+//					ADC_Collect();  //电感采值
+//	        Data_current_analyze();  //电感值归一化函数
+//					Current_Dir=Cha_bi_he(Left_Adc,Right_Adc,100);
+//					
+//					sprintf(txt,"adc0= %05d",Left_Adc);
+//					ips114_showstr(1, 2, txt); //显示
+//					sprintf(txt,"adc1= %05d",Left_Shu_Adc);
+//					ips114_showstr(1, 3, txt); //显示
+//					sprintf(txt,"adc2= %05d",Right_Shu_Adc);
+//					ips114_showstr(1, 4, txt); //显示
+//					sprintf(txt,"adc3= %05d",Right_Adc);
+//					ips114_showstr(1, 5, txt); //显示
+//					sprintf(txt,"Current_Dir= %05d",Current_Dir);
+//					ips114_showstr(1, 6, txt); //显示
+//        }
   }	
 }
 

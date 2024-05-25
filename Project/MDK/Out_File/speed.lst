@@ -1,0 +1,223 @@
+C251 COMPILER V5.60.0,  speed                                                              25/05/24  09:55:38  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE speed
+OBJECT MODULE PLACED IN .\Out_File\speed.obj
+COMPILER INVOKED BY: E:\keil5\C251\BIN\C251.EXE ..\USER\src\speed.c XSMALL INTR2 ROM(HUGE) WARNINGLEVEL(3) BROWSE INCDIR
+                    -(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\CODE;..\USER\inc;..
+                    -\USER\src) DEBUG PRINT(.\Out_File\speed.lst) OBJECT(.\Out_File\speed.obj) 
+
+stmt  level    source
+
+    1          #include "speed.h"
+    2          #include "math.h"
+    3          
+    4          int16 aim_speed = 0;         //目标速度  
+    5          int16 real_speed = 0;        //左右轮平均速度 
+    6          int16 left_speed = 0;        //左轮速度
+    7          int16 right_speed = 0;       //右轮速度
+    8          
+    9          int16 All_PWM_left = 0;      //左轮所有PWM输出
+   10          int16 All_PWM_right = 0;     //右轮所有PWM输出
+   11          int16 Speed_pwm_left = 0;    //左轮速度环PWM（C车用）
+   12          int16 Speed_pwm_right = 0;   //右轮速度环PWM（C车用）
+   13          int16 Speed_pwm_all = 0;     //左右平均速度环PWM（D车用）
+   14          int16 Steer_pwm = 0;         //转向内环PWM
+   15          uint16 Open_pack_time = 0;   //打开干簧管定时
+   16          uint16 Stop_time = 0;        //停车定时
+   17           
+   18          /******************************* 电机初始化***********************************
+   19          函数：  void init_PWM(unsigned char Motor_Set)
+   20          参数：  Motor_Set---为0时初始化为BTN驱动方式，为1时初始化DRV驱动方式
+   21          说明：  分母10000
+   22                              pwm_init(PWMA_CH1P_P60, 10000, 0); 
+   23                  初始化PWM  使用引脚P6.0  输出PWM频率10000HZ  占空比为百分之 pwm_duty / PWM_DUTY_MAX * 100                               
+   24          返回值：无  
+   25          *****************************************************************************/
+   26          unsigned char MOTOR_MODE=1;//中间变量，请勿修改删除！！！
+   27          void init_PWM(unsigned char Motor_Set)
+   28          {
+   29   1              MOTOR_MODE = Motor_Set;
+   30   1              if (MOTOR_MODE==0) 
+   31   1              {
+   32   2      //-----MOS驱动-----------
+   33   2          pwm_init(Left_Z_Pin, 20000,0);//左轮初始化
+   34   2                pwm_init(Left_F_Pin, 20000,0);
+   35   2                pwm_init(Right_Z_Pin, 20000,0);//右轮初始化
+   36   2                pwm_init(Right_F_Pin, 20000,0);
+   37   2              }
+   38   1                      else
+   39   1              {
+   40   2      //------DRV驱动-------------
+   41   2                pwm_init(Left_PWM_Pin, 20000,0);//左轮初始化
+   42   2              pwm_init(Right_PWM_Pin,20000,0);//右轮初始化
+   43   2                      gpio_mode(P6_4,GPO_PP);       // 设置DRV方向引脚为为推挽输出
+   44   2                gpio_mode(P6_0,GPO_PP);       // 设置DRV方向引脚为为推挽输出
+   45   2       } 
+   46   1      }
+   47          /****************************编码器初始化****************************
+   48          函数：  void encoder_init(void)
+   49          功能：  编码器初始化
+   50          参数：  无
+   51          说明：  ctimer_count_init(CTIM0_P34);
+   52                  编码器使用TIM3和TIM4，如更改引脚只需修改宏定义即可 
+   53                  编码器使用带方向的编码器（STC不支持正交解码）
+   54          返回值：无
+   55          ********************************************************************/
+   56          void encoder_init()
+   57          {
+C251 COMPILER V5.60.0,  speed                                                              25/05/24  09:55:38  PAGE 2   
+
+   58   1          //左编码器初始化
+   59   1                      ctimer_count_init(Left_Ecoder_Pin1);
+   60   1                      //右编码器初始化
+   61   1                      ctimer_count_init(Right_Ecoder_Pin1);
+   62   1      }  
+   63          /***************************速度测量********************************
+   64          函数名：speed_measure()
+   65          功  能：速度测量，读取编码器的值，不同编码器安装和车的前进方向不对会
+   66                  导致采集的值可能是反过来的，只需修改* (-1)就行，改到上面就可
+   67                  以了
+   68          参  数：void
+   69          返回值：void
+   70          ******************************************************************/
+   71          void speed_measure()
+   72          { 
+   73   1                if(Left_Ecoder_Pin2 == 1)
+   74   1                      {
+   75   2                              left_speed = ctimer_count_read(Left_Ecoder_Pin1);
+   76   2                              ctimer_count_clean(Left_Ecoder_Pin1);
+   77   2                      }
+   78   1                      else
+   79   1                      {
+   80   2                              left_speed = ctimer_count_read(Left_Ecoder_Pin1)* (-1);
+   81   2                        ctimer_count_clean(Left_Ecoder_Pin1);
+   82   2                      }
+   83   1                      if(Right_Ecoder_Pin2 == 1)
+   84   1                      {
+   85   2                              right_speed = ctimer_count_read(Right_Ecoder_Pin1)* (-1);
+   86   2                              ctimer_count_clean(Right_Ecoder_Pin1);
+   87   2                      }
+   88   1                      else
+   89   1                      {
+   90   2                              right_speed =  ctimer_count_read(Right_Ecoder_Pin1);
+   91   2                        ctimer_count_clean(Right_Ecoder_Pin1);
+   92   2                      }
+   93   1      
+   94   1                      real_speed=(left_speed+right_speed)/2;
+   95   1      }
+   96          /*******************************出库定时打开干簧管等***********************************
+   97          函数：  void timed_task(void)
+   98          参数：  无
+   99          说明：  出库完成定时打开干簧管等作为标志位处理，防止刚出库就检测到停车
+  100          返回值：无 
+  101          *************************************************************************************/
+  102          void timed_task(void)
+  103          {
+  104   1              if(flag_start)
+  105   1              {
+  106   2                      Open_pack_time=Open_pack_time+20;
+  107   2              }
+  108   1      //      if(flag_end)
+  109   1      //      {
+  110   1      //              Stop_time=Stop_time+20;
+  111   1      //      }
+  112   1      }
+  113          
+  114          /*****************************电机输出*******************************************
+  115          函数：void go_motor (int16 left_PWM,int16 right_PWM)
+  116          参数：  int16 left_PWM,int16 right_PWM
+  117          说明：pwm_duty(PWMA_CH1P_P60, duty);
+  118                务必将车子的电机逻辑调像这个一样，第一个参数控制左电机，第二个参数控制右电机
+  119                传入的参数如果为正数，电机正转，负值反转！！！！！
+  120          返回值：无 
+  121          ********************************************************************************/
+  122          #define Duty_Max  8000   //限幅最大值
+  123          
+C251 COMPILER V5.60.0,  speed                                                              25/05/24  09:55:38  PAGE 3   
+
+  124          void go_motor (int16 left_PWM,int16 right_PWM)
+  125          {
+  126   1      //  if  (MOTOR_MODE==0)
+  127   1      //  {   
+  128   1      ////---------------------------------MOS驱动-----------------------------------------   
+  129   1      //    if (left_PWM>0)                   //左轮
+  130   1      //    {
+  131   1      //               left_PWM = left_PWM<=Duty_Max ? left_PWM : Duty_Max;
+  132   1      //     pwm_duty(Left_Z_Pin,left_PWM);
+  133   1      //     pwm_duty(Left_F_Pin,0);                      //正转
+  134   1      //    }         
+  135   1      //    else 
+  136   1      //    {
+  137   1      //     left_PWM = left_PWM>=-Duty_Max ? (-left_PWM) : Duty_Max;  
+  138   1      //     pwm_duty(Left_Z_Pin,0);  
+  139   1      //     pwm_duty(Left_F_Pin,left_PWM);     //反转
+  140   1      //    } 
+  141   1      //    if (right_PWM>0)                  //右轮
+  142   1      //    { 
+  143   1      //     right_PWM = right_PWM<=Duty_Max ? right_PWM : Duty_Max; 
+  144   1      //         pwm_duty(Right_Z_Pin,right_PWM);     
+  145   1      //         pwm_duty(Right_F_Pin,0);                         //正转
+  146   1      //    } 
+  147   1      //    else 
+  148   1      //    {
+  149   1      //     right_PWM = right_PWM>=-Duty_Max ? (-right_PWM) : Duty_Max;  
+  150   1      //         pwm_duty(Right_Z_Pin,0);     
+  151   1      //         pwm_duty(Right_F_Pin,right_PWM); //反转
+  152   1      //    }
+  153   1      //  }
+  154   1      //  else
+  155   1      //  {
+  156   1      //-------------------------------------------DRV驱动-------------------------------------
+  157   1         if (left_PWM>0)                     //左轮
+  158   1         {
+  159   2                       left_PWM = left_PWM<=Duty_Max ? left_PWM : Duty_Max;
+  160   2                       Left_DIR_Pin=1;                         
+  161   2           pwm_duty(Left_PWM_Pin,left_PWM);  //正转
+  162   2         }    
+  163   1         else 
+  164   1         {
+  165   2           left_PWM = left_PWM>=-Duty_Max ? (-left_PWM) : Duty_Max;  
+  166   2           Left_DIR_Pin=0;    
+  167   2           pwm_duty(Left_PWM_Pin,left_PWM);  //反转
+  168   2         }
+  169   1         if (right_PWM>0)                    //右轮
+  170   1         {
+  171   2           right_PWM = right_PWM<=Duty_Max ? right_PWM : Duty_Max;
+  172   2           Right_DIR_Pin=1;                    
+  173   2                 pwm_duty(Right_PWM_Pin,right_PWM);//正转             
+  174   2               } 
+  175   1         else 
+  176   1         {
+  177   2           right_PWM = right_PWM>=-Duty_Max ? (-right_PWM) : Duty_Max;  
+  178   2                 Right_DIR_Pin=0;
+  179   2                 pwm_duty(Right_PWM_Pin,right_PWM); //反转
+  180   2         }
+  181   1       // }
+  182   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       397     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+C251 COMPILER V5.60.0,  speed                                                              25/05/24  09:55:38  PAGE 4   
+
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        25     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        77     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

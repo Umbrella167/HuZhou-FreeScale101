@@ -14,7 +14,6 @@ typedef enum _TASK_LIST
 {
     TAST_Motor_output_control,            
     TAST_Trailing_control,                         
-    //...........
     TASKS_MAX         
 }TASK_LIST;
 //º¯ÊýÉùÃ÷
